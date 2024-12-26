@@ -9,7 +9,7 @@ const bot = new TelegramBot(TOKEN, { polling: true });
 // Danh sách các lệnh và link tương ứng
 const commands = {
     seed: {
-        description: 'Đây là mô tả kèo SSeed',
+        description: 'Đây là mô tả kèo Seed',
         url: 'http://t.me/seed_coin_bot/app?startapp=7102969020',
     },
     matchquest: {
@@ -41,31 +41,49 @@ const commands = {
         url: 'https://t.me/herewalletbot/app?startapp=23774733',
     },
 };
+// Lệnh /start
+bot.onText(/\/start/, (msg) => {
+    const chatId = msg.chat.id;
 
-// Đăng ký handler cho các lệnh
-Object.keys(commands).forEach((command) => {
-    bot.onText(new RegExp(`^/${command}$`), (msg) => {
+    // Gửi danh sách các lệnh
+    const commandList = Object.keys(commands)
+        .map((cmd) => `/${cmd} - ${commands[cmd].description}`)
+        .join('\n');
+
+    bot.sendMessage(
+        chatId,
+        `Chào mừng bạn đến với bot!\nBạn có thể sử dụng các lệnh sau:\n\n${commandList}\n\nHoặc dùng /reset để đặt lại cuộc trò chuyện.`
+    );
+});
+
+// Đăng ký các lệnh tự động
+Object.keys(commands).forEach((cmd) => {
+    bot.onText(new RegExp(`^/${cmd}$`), (msg) => {
         const chatId = msg.chat.id;
-        const { description, url } = commands[command];
+        const { description, url } = commands[cmd];
 
-        // Tạo nút bấm với link
-        const options = {
+        bot.sendMessage(chatId, description, {
             reply_markup: {
-                inline_keyboard: [
-                    [
-                        {
-                            text: 'Đi đến link',
-                            url: url,
-                        },
-                    ],
-                ],
+                inline_keyboard: [[{ text: 'Truy cập link', url }]],
             },
-        };
-
-        // Gửi tin nhắn với mô tả và nút bấm
-        bot.sendMessage(chatId, description, options);
+        });
     });
 });
 
-// Thông báo khi bot hoạt động
-console.log('Bot đang chạy...');
+// Lệnh /reset
+bot.onText(/\/reset/, (msg) => {
+    const chatId = msg.chat.id;
+
+    bot.sendMessage(chatId, 'Trạng thái cuộc trò chuyện đã được đặt lại. Bạn có thể bắt đầu lại bằng cách nhập /start.');
+});
+
+// Xử lý các tin nhắn không thuộc lệnh
+bot.on('message', (msg) => {
+    const chatId = msg.chat.id;
+
+    if (!msg.text.startsWith('/')) {
+        bot.sendMessage(chatId, 'Mình không hiểu bạn nói gì. Hãy thử nhập /start để xem các lệnh.');
+    }
+});
+
+console.log('Bot Telegram đang chạy...');
