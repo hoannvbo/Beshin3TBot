@@ -40,49 +40,83 @@ const commands = {
         description: 'Đây là mô tả cho Hot.',
         url: 'https://t.me/herewalletbot/app?startapp=23774733',
     },
+    reset: {
+        description: 'Khởi động lại bot.',
+        url: null, // Không có liên kết
+    },
 };
-// Lệnh /start
-bot.onText(/\/start/, (msg) => {
-    const chatId = msg.chat.id;
 
-    // Gửi danh sách các lệnh
+// Đối tượng lưu trữ tên người dùng
+const userNames = {}; // Lưu trữ tên người dùng theo chatId
+
+// Hàm xử lý lệnh /start
+function handleStart(chatId, userName) {
     const commandList = Object.keys(commands)
         .map((cmd) => `/${cmd} - ${commands[cmd].description}`)
         .join('\n');
 
     bot.sendMessage(
         chatId,
-        `Chào mừng bạn đến với bot!\nBạn có thể sử dụng các lệnh sau:\n\n${commandList}\n\nHoặc dùng /reset để đặt lại cuộc trò chuyện.`
+        `Chào mừng bạn đến với bot, ${userName}!\nBạn có thể sử dụng các lệnh sau:\n\n${commandList}\n\nHoặc dùng các nút bên dưới:`,
+        // {
+        //     reply_markup: {
+        //         inline_keyboard: Object.keys(commands)
+        //             .filter((cmd) => commands[cmd].url) // Chỉ hiển thị các lệnh có liên kết
+        //             .map((cmd) => [
+        //                 { text: commands[cmd].description, url: commands[cmd].url },
+        //             ]),
+        //     },
+        // }
     );
-});
+}
 
-// Đăng ký các lệnh tự động
-Object.keys(commands).forEach((cmd) => {
-    bot.onText(new RegExp(`^/${cmd}$`), (msg) => {
-        const chatId = msg.chat.id;
-        const { description, url } = commands[cmd];
+// Hàm ghi log tin nhắn
+function logMessage(msg) {
+    const currentTime = new Date().toISOString();
+    const username = msg.from.username || msg.from.first_name; // Lấy tên người dùng
+    const messageText = msg.text || 'Không có nội dung'; // Lấy nội dung tin nhắn
 
-        bot.sendMessage(chatId, description, {
-            reply_markup: {
-                inline_keyboard: [[{ text: 'Truy cập link', url }]],
-            },
-        });
-    });
-});
+    // In ra log với thời gian, tên người dùng và nội dung tin nhắn
+    console.log(`[${currentTime}] ${username}: ${messageText}`);
+}
 
-// Lệnh /reset
-bot.onText(/\/reset/, (msg) => {
-    const chatId = msg.chat.id;
-
-    bot.sendMessage(chatId, 'Trạng thái cuộc trò chuyện đã được đặt lại. Bạn có thể bắt đầu lại bằng cách nhập /start.');
-});
-
-// Xử lý các tin nhắn không thuộc lệnh
+// Xử lý tin nhắn từ người dùng
 bot.on('message', (msg) => {
     const chatId = msg.chat.id;
+    const text = msg.text;
 
-    if (!msg.text.startsWith('/')) {
-        bot.sendMessage(chatId, 'Mình không hiểu bạn nói gì. Hãy thử nhập /start để xem các lệnh.');
+    // Ghi log tin nhắn
+    logMessage(msg);
+
+    // Lưu tên người dùng
+    const userName = msg.from.username || msg.from.first_name; // Lấy username hoặc first_name của người dùng
+    userNames[chatId] = userName; // Lưu tên vào đối tượng userNames
+
+    // Nếu tin nhắn không phải văn bản, coi như không hợp lệ
+    if (typeof text !== 'string') {
+        handleStart(chatId, userName);
+        return;
+    }
+
+    // Kiểm tra nếu người dùng nhập không phải lệnh hợp lệ
+    if (!text.startsWith('/') || !Object.keys(commands).includes(text.slice(1))) {
+        // Gọi hàm xử lý lệnh /start
+        handleStart(chatId, userName);
+    } else {
+        // Xử lý các lệnh hợp lệ khác nếu có
+        const commandKey = text.slice(1); // Lấy tên lệnh, bỏ dấu /
+        if (commands[commandKey]) {
+            const { description, url } = commands[commandKey];
+            if (url) {
+                bot.sendMessage(chatId, description, {
+                    reply_markup: {
+                        inline_keyboard: [[{ text: 'Truy cập link', url }]],
+                    },
+                });
+            } else if (commandKey === 'reset') {
+                handleStart(chatId, userName);
+            }
+        }
     }
 });
 
