@@ -1,7 +1,11 @@
+const axios = require('axios'); // Thêm thư viện axios để gửi yêu cầu HTTP
 const TelegramBot = require('node-telegram-bot-api');
 
 // Thay bằng token API của bot
 const TOKEN = '7267186723:AAFQyV9hY2xYdX50Y8FDw_h8Qexg3vglTrU';
+
+// Thay URL webhook từ Make.com
+const WEBHOOK_URL = 'https://hook.eu2.make.com/jjddc02cilfmmm841b7jqtmt1zd4xga8';
 
 // Tạo bot
 const bot = new TelegramBot(TOKEN, { polling: true });
@@ -40,10 +44,6 @@ const commands = {
         description: 'Đây là mô tả cho Hot.',
         url: 'https://t.me/herewalletbot/app?startapp=23774733',
     },
-    reset: {
-        description: 'Khởi động lại bot.',
-        url: null, // Không có liên kết
-    },
 };
 
 // Đối tượng lưu trữ tên người dùng
@@ -70,14 +70,30 @@ function handleStart(chatId, userName) {
     );
 }
 
-// Hàm ghi log tin nhắn
-function logMessage(msg) {
+// Hàm ghi log tin nhắn và gửi đến webhook
+function logMessageAndSendToWebhook(msg) {
     const currentTime = new Date().toISOString();
-    const username = msg.from.username || msg.from.first_name; // Lấy tên người dùng
-    const messageText = msg.text || 'Không có nội dung'; // Lấy nội dung tin nhắn
+    const username = msg.from.username || msg.from.first_name;
+    const messageText = msg.text || 'Không có nội dung';
 
     // In ra log với thời gian, tên người dùng và nội dung tin nhắn
     console.log(`[${currentTime}] ${username}: ${messageText}`);
+
+    // Dữ liệu gửi đến webhook
+    const data = {
+        chatId: msg.chat.id,
+        username: username,
+        messageText: messageText,
+    };
+
+    // Gửi dữ liệu đến webhook của Make.com
+    axios.post(WEBHOOK_URL, data)
+        .then(response => {
+            console.log('Dữ liệu đã được gửi đến webhook:', response.data);
+        })
+        .catch(error => {
+            console.error('Lỗi khi gửi dữ liệu đến webhook:', error);
+        });
 }
 
 // Xử lý tin nhắn từ người dùng
@@ -85,12 +101,12 @@ bot.on('message', (msg) => {
     const chatId = msg.chat.id;
     const text = msg.text;
 
-    // Ghi log tin nhắn
-    logMessage(msg);
+    // Ghi log tin nhắn và gửi đến webhook
+    logMessageAndSendToWebhook(msg);
 
     // Lưu tên người dùng
-    const userName = msg.from.username || msg.from.first_name; // Lấy username hoặc first_name của người dùng
-    userNames[chatId] = userName; // Lưu tên vào đối tượng userNames
+    const userName = msg.from.username || msg.from.first_name;
+    userNames[chatId] = userName;
 
     // Nếu tin nhắn không phải văn bản, coi như không hợp lệ
     if (typeof text !== 'string') {
@@ -100,11 +116,10 @@ bot.on('message', (msg) => {
 
     // Kiểm tra nếu người dùng nhập không phải lệnh hợp lệ
     if (!text.startsWith('/') || !Object.keys(commands).includes(text.slice(1))) {
-        // Gọi hàm xử lý lệnh /start
         handleStart(chatId, userName);
     } else {
         // Xử lý các lệnh hợp lệ khác nếu có
-        const commandKey = text.slice(1); // Lấy tên lệnh, bỏ dấu /
+        const commandKey = text.slice(1);
         if (commands[commandKey]) {
             const { description, url } = commands[commandKey];
             if (url) {
